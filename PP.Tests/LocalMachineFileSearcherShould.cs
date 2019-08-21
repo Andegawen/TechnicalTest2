@@ -69,6 +69,28 @@ namespace PP.Tests
             Assert.That(sut.ResultCollection, Is.EquivalentTo(new string[0]));
         }
 
+        [Test]
+        public void ReturnPartialResult_WhenCancelInvoked()
+        {
+            var cts = new CancellationTokenSource();
+            IEnumerable<string> CancelInTheMiddleOfFileEnumeration()
+            {
+                yield return "C:\\f1.txt";
+                cts.Cancel();
+                yield return "C:\\f2.txt";
+            }
+            _fileAbstraction
+                .CallsTo(x => x.EnumerateFilesInDirectory("C:\\"))
+                .ReturnsLazily(CancelInTheMiddleOfFileEnumeration);
+            var sut = new LocalMachineFileSearcher(_fileAbstraction.FakedObject);
+
+            sut.Start(cts.Token);
+
+            Assert.That(sut.ResultCollection, Is.EquivalentTo(new[]{"C:\\f1.txt"}));
+        }
+
+        
+
         private void ProvideFilesInDirectories()
         {
             _fileAbstraction

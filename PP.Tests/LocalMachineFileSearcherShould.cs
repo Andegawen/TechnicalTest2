@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using FakeItEasy;
 using NUnit.Framework;
@@ -10,6 +11,8 @@ namespace PP.Tests
     public class LocalMachineFileSearcherShould
     {
         private Fake<IFileAbstraction> _fileAbstraction;
+        private LocalMachineFileSearcher _sut;
+        private AutoResetEvent _wait;
 
         [SetUp]
         public void InitializeFakeFileAbstraction()
@@ -17,6 +20,9 @@ namespace PP.Tests
             _fileAbstraction = new Fake<IFileAbstraction>();
             _fileAbstraction
                 .CallsTo(x => x.GetDrives()).Returns(new[] { "C:\\", "D:\\" });
+            _sut = new LocalMachineFileSearcher(_fileAbstraction.FakedObject);
+            _wait = new AutoResetEvent(false);
+            _sut.NotifyAboutCompletion += (p) => { _wait.Set(); };
         }
 
         [Test]
@@ -24,9 +30,8 @@ namespace PP.Tests
         {
             ProvideProperDirectories();
             ProvideFilesInDirectories();
-            var sut = new LocalMachineFileSearcher(_fileAbstraction.FakedObject);
-
-            sut.Start(CancellationToken.None);
+            
+            _sut.Start(CancellationToken.None);
 
             var expected = new[]
             {
@@ -36,30 +41,31 @@ namespace PP.Tests
                 "C:\\Dir1\\f4.txt",
                 "C:\\Dir1\\Dir1_1\\f5.txt","D:\\f_d.txt"
             };
-            Assert.That(sut.ResultCollection, Is.EquivalentTo(expected));
+            Assert.IsTrue(_wait.WaitOne(TimeSpan.FromSeconds(1)),"Test should ended in less than 1 sec");
+            Assert.That(_sut.ResultCollection, Is.EquivalentTo(expected));
         }
 
         [Test]
         public void ReturnsEmptyCollection_WhenThereIsNoFilesInAnyDirectory()
         {
             ProvideProperDirectories();
-            var sut = new LocalMachineFileSearcher(_fileAbstraction.FakedObject);
 
-            sut.Start(CancellationToken.None);
+            _sut.Start(CancellationToken.None);
 
-            Assert.That(sut.ResultCollection, Is.EquivalentTo(new string[0]));
+            Assert.IsTrue(_wait.WaitOne(TimeSpan.FromSeconds(1)), "Test should ended in less than 1 sec");
+            Assert.That(_sut.ResultCollection, Is.EquivalentTo(new string[0]));
         }
 
         [Test]
         public void ShouldStopImmediatelyOnCancel()
         {
-            var sut = new LocalMachineFileSearcher(_fileAbstraction.FakedObject);
-
             var cts = new CancellationTokenSource();
             cts.Cancel();
-            sut.Start(cts.Token);
 
-            Assert.That(sut.ResultCollection, Is.EquivalentTo(new string[0]));
+            _sut.Start(cts.Token);
+
+            Assert.IsTrue(_wait.WaitOne(TimeSpan.FromSeconds(1)), "Test should ended in less than 1 sec");
+            Assert.That(_sut.ResultCollection, Is.EquivalentTo(new string[0]));
             _fileAbstraction.CallsTo(x => x.EnumerateTopDirectories(A<string>._))
                 .MustNotHaveHappened();
             _fileAbstraction.CallsTo(x => x.EnumerateFilesInDirectory(A<string>._))
@@ -79,11 +85,11 @@ namespace PP.Tests
             _fileAbstraction
                 .CallsTo(x => x.EnumerateFilesInDirectory("C:\\"))
                 .ReturnsLazily(CancelInTheMiddleOfFileEnumeration);
-            var sut = new LocalMachineFileSearcher(_fileAbstraction.FakedObject);
 
-            sut.Start(cts.Token);
+            _sut.Start(cts.Token);
 
-            Assert.That(sut.ResultCollection, Is.EquivalentTo(new[]{"C:\\f1.txt"}));
+            Assert.IsTrue(_wait.WaitOne(TimeSpan.FromSeconds(1)), "Test should ended in less than 1 sec");
+            Assert.That(_sut.ResultCollection, Is.EquivalentTo(new[]{"C:\\f1.txt"}));
         }
 
         private void ProvideFilesInDirectories()

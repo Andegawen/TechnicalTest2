@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
 using FakeItEasy;
 using NUnit.Framework;
 using PP.Wpf;
@@ -55,11 +51,8 @@ namespace PP.Tests
         }
 
         [Test]
-        public void BeAbleToStopRunningProcessImmediately()
+        public void ShouldStopImmediatelyOnCancel()
         {
-            _fileAbstraction
-                .CallsTo(x => x.EnumerateFilesInDirectory("C:\\"))
-                .Returns(new[] { "C:\\f1.txt", "C:\\f2.txt" });
             var sut = new LocalMachineFileSearcher(_fileAbstraction.FakedObject);
 
             var cts = new CancellationTokenSource();
@@ -67,6 +60,10 @@ namespace PP.Tests
             sut.Start(cts.Token);
 
             Assert.That(sut.ResultCollection, Is.EquivalentTo(new string[0]));
+            _fileAbstraction.CallsTo(x => x.EnumerateTopDirectories(A<string>._))
+                .MustNotHaveHappened();
+            _fileAbstraction.CallsTo(x => x.EnumerateFilesInDirectory(A<string>._))
+                .MustNotHaveHappened();
         }
 
         [Test]
@@ -88,8 +85,6 @@ namespace PP.Tests
 
             Assert.That(sut.ResultCollection, Is.EquivalentTo(new[]{"C:\\f1.txt"}));
         }
-
-        
 
         private void ProvideFilesInDirectories()
         {

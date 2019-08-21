@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Threading;
 using PP.Wpf.UI;
 
 namespace PP.Wpf
@@ -14,8 +16,10 @@ namespace PP.Wpf
         public MainViewModel()
         {
             Collection = new ObservableCollection<string>();
+            Collection.Add("b");
             Collection.Add("xxx");
             Collection.Add("yyy");
+            Collection.Add("a");
         }
 
         public MainViewModel(LocalMachineFileSearcher fileSearcher)
@@ -29,12 +33,24 @@ namespace PP.Wpf
                 Pending = true;
                 CurrentDirectory = "";
                 Collection = new ObservableCollection<string>();
+                _dispatcherTimer.Start();
                 _fileSearcher.Start(_currentCancellationTokenSource.Token);
             });
             StopCommand = new DelegateCommand(_ =>
             {
                 _currentCancellationTokenSource?.Cancel();
             });
+
+            _dispatcherTimer = new System.Windows.Threading.DispatcherTimer();
+            _dispatcherTimer.Tick += dispatcherTimer_Tick;
+            _dispatcherTimer.Interval = TimeSpan.FromSeconds(5);
+        }
+
+        private void dispatcherTimer_Tick(object sender, EventArgs e)
+        {
+            _fileSearcher.ResultCollection.ToList()
+                .Except(Collection).ToList()
+                .ForEach(el=>Collection.Add(el));
         }
 
         private void NotifyAboutCompletion(Completion completion)
@@ -69,6 +85,7 @@ namespace PP.Wpf
         private bool _pending;
         private ObservableCollection<string> _collection;
         private string _currentDirectory;
+        private readonly DispatcherTimer _dispatcherTimer;
         public event PropertyChangedEventHandler PropertyChanged;
 
         public ObservableCollection<string> Collection

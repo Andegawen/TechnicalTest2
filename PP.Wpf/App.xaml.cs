@@ -13,5 +13,11 @@ namespace PP.Wpf
     /// </summary>
     public partial class App : Application
     {
+        protected override void OnActivated(EventArgs e)
+        {
+            base.OnActivated(e);
+            if (this.MainWindow != null && MainWindow.DataContext == null)
+                this.MainWindow.DataContext = new MainViewModel(new LocalMachineFileSearcher(new FileAbstraction()));
+        }
     }
 }

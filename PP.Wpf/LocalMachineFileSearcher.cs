@@ -9,7 +9,7 @@ namespace PP.Wpf
     {
         private readonly IFileAbstraction _fileAbstraction;
 
-        public event Action<ProgressInfo> NotifyProgress;
+        public event Action<Completion> NotifyAboutCompletion;
 
         public LocalMachineFileSearcher(IFileAbstraction fileAbstraction)
         {
@@ -19,7 +19,7 @@ namespace PP.Wpf
         public void Start(CancellationToken token)
         {
             ResultCollection = new List<string>();
-            var t = Task.Factory.StartNew(() =>
+            var task = Task.Factory.StartNew(() =>
             {
                 try
                 {
@@ -29,8 +29,15 @@ namespace PP.Wpf
                 {
                     Console.WriteLine(e);
                 }
+            }, token);
 
-                NotifyProgress?.Invoke(new ProgressInfo(100));
+            task.ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                {
+                    NotifyAboutCompletion?.Invoke(new Completion.ErrorOccured(t.Exception));
+                }
+                NotifyAboutCompletion?.Invoke(new Completion.Ended());
             });
         }
 
@@ -67,13 +74,18 @@ namespace PP.Wpf
         }
     }
 
-    public class ProgressInfo
+    public abstract class Completion
     {
-        public int PercentageValue { get; }
+        public sealed class Ended : Completion { }
 
-        public ProgressInfo(int percentageValue)
+        public sealed class ErrorOccured : Completion
         {
-            PercentageValue = percentageValue;
+            public Exception Ex { get; }
+
+            public ErrorOccured(Exception ex)
+            {
+                Ex = ex;
+            }
         }
     }
 }

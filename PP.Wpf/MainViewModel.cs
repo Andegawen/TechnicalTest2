@@ -1,8 +1,11 @@
-﻿using System.Collections.ObjectModel;
+﻿using System;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Windows;
 using System.Windows.Input;
+using PP.Wpf.UI;
 
 namespace PP.Wpf
 {
@@ -19,11 +22,13 @@ namespace PP.Wpf
         {
             Collection = new ObservableCollection<string>();
             _fileSearcher = fileSearcher;
-            _fileSearcher.NotifyProgress += NotifyProgress;
+            _fileSearcher.NotifyAboutCompletion += NotifyAboutCompletion;
             StartCommand = new DelegateCommand(_=>
             {
                 _currentCancellationTokenSource = new CancellationTokenSource();
                 Pending = true;
+                CurrentDirectory = "";
+                Collection = new ObservableCollection<string>();
                 _fileSearcher.Start(_currentCancellationTokenSource.Token);
             });
             StopCommand = new DelegateCommand(_ =>
@@ -32,12 +37,19 @@ namespace PP.Wpf
             });
         }
 
-        private void NotifyProgress(ProgressInfo obj)
+        private void NotifyAboutCompletion(Completion completion)
         {
-            if (obj.PercentageValue == 100)
+            switch (completion)
             {
-                Pending = false;
-                Collection = new ObservableCollection<string>(_fileSearcher.ResultCollection);
+                case Completion.ErrorOccured error:
+                    MessageBox.Show(error.Ex.Message, "Unexpected error occured");
+                    break;
+                case Completion.Ended _:
+                    Pending = false;
+                    Collection = new ObservableCollection<string>(_fileSearcher.ResultCollection);
+                    break;
+                default:
+                    throw new NotSupportedException("No other Completion possible");
             }
         }
 
@@ -56,6 +68,7 @@ namespace PP.Wpf
         private CancellationTokenSource _currentCancellationTokenSource = null;
         private bool _pending;
         private ObservableCollection<string> _collection;
+        private string _currentDirectory;
         public event PropertyChangedEventHandler PropertyChanged;
 
         public ObservableCollection<string> Collection
@@ -71,6 +84,16 @@ namespace PP.Wpf
         public DelegateCommand StartCommand { get; set; }
 
         public DelegateCommand StopCommand { get; set; }
+
+        public string CurrentDirectory
+        {
+            get => _currentDirectory;
+            set
+            {
+                _currentDirectory = value;
+                OnPropertyChanged();
+            }
+        }
 
         protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
         {

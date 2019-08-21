@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Windows.Input;
 
-namespace PP.Wpf
+namespace PP.Wpf.UI
 {
     /// Implementation from <see cref="https://www.wpftutorial.net/DelegateCommand.html"/>
     public class DelegateCommand : ICommand

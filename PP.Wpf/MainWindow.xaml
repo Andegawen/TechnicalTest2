@@ -4,23 +4,38 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:PP.Wpf"
+        xmlns:fa="http://schemas.fontawesome.io/icons/"
+        xmlns:ui="clr-namespace:PP.Wpf.UI"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
     <d:Window.DataContext>
         <local:MainViewModel/>
     </d:Window.DataContext>
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <ui:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
+    </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <StackPanel Grid.Row="0" Orientation="Horizontal">
-            <Button Command="{Binding StartCommand}">Start</Button>
-            <Button Margin="10,0,0,0"
-                    Command="{Binding StopCommand}">Stop</Button>
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,5">
+            <Button VerticalContentAlignment="Center" 
+                    Command="{Binding StartCommand}" IsEnabled="{Binding Pending, Converter={StaticResource InverseBooleanConverter}}">Start</Button>
+            <Button VerticalContentAlignment="Center" Margin="10,0,0,0"
+                    Command="{Binding StopCommand}" IsEnabled="{Binding Pending}">Stop</Button>
+        </StackPanel>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,5"
+                    Visibility="{Binding Pending, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <TextBlock Text="Searching"/>
+            <fa:ImageAwesome Icon="Spinner" Spin="True" Margin="5,0,0,0"
+                         VerticalAlignment="Center" HorizontalAlignment="Center"
+                         Height="20" Width="20"/>
         </StackPanel>
 
-        <DataGrid Grid.Row="1" ItemsSource="{Binding Collection}" 
+        <DataGrid Grid.Row="2" ItemsSource="{Binding Collection}" 
                   AutoGenerateColumns="False" 
                   CanUserAddRows="False" CanUserDeleteRows="False" IsReadOnly="True"
                   CanUserResizeColumns="True" CanUserReorderColumns="True" 

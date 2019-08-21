@@ -16,29 +16,36 @@ namespace PP.Wpf
             _fileAbstraction = fileAbstraction;
         }
 
-        public IEnumerable<string> GetAll(CancellationToken token)
+        public void Start(CancellationToken token)
         {
-            return GetPartial(_fileAbstraction.GetDrives(), token);
-        }
-
-        private IEnumerable<string> GetPartial(IEnumerable<string> directories, CancellationToken token)
-        {
-            foreach (var directory in directories)
+            ResultCollection = new List<string>();
+            try
             {
-                foreach (var file in _fileAbstraction.EnumerateFilesInDirectory(directory))
-                {
-                    token.ThrowIfCancellationRequested();
-                    yield return file;
-                }
-
-                foreach (var file in GetPartial(_fileAbstraction.EnumerateTopDirectories(directory), token))
-                {
-                    token.ThrowIfCancellationRequested();
-                    yield return file;
-                }
+                GetPartial(_fileAbstraction.GetDrives(), token);
+            }
+            catch (OperationCanceledException e)
+            {
+                Console.WriteLine(e);
             }
         }
 
+        public IList<string> ResultCollection { get; private set; }
+
+        private void GetPartial(IEnumerable<string> directories, CancellationToken token)
+        {
+            foreach (var directory in directories)
+            {
+                token.ThrowIfCancellationRequested();
+
+                foreach (var file in _fileAbstraction.EnumerateFilesInDirectory(directory))
+                {
+                    token.ThrowIfCancellationRequested();
+                    ResultCollection.Add(file);
+                }
+
+                GetPartial(_fileAbstraction.EnumerateTopDirectories(directory), token);
+            }
+        }
     }
 
 }

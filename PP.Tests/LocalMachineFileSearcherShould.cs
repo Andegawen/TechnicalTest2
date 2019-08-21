@@ -11,7 +11,7 @@ using PP.Wpf;
 namespace PP.Tests
 {
     [TestFixture]
-    public class LocalMachineFileSearcherTests
+    public class LocalMachineFileSearcherShould
     {
         private Fake<IFileAbstraction> _fileAbstraction;
 
@@ -19,16 +19,18 @@ namespace PP.Tests
         public void InitializeFakeFileAbstraction()
         {
             _fileAbstraction = new Fake<IFileAbstraction>();
+            _fileAbstraction
+                .CallsTo(x => x.GetDrives()).Returns(new[] { "C:\\", "D:\\" });
         }
 
         [Test]
-        public void GetAll_ReturnsAllFiles()
+        public void ReturnsAllFiles()
         {
             ProvideProperDirectories();
             ProvideFilesInDirectories();
             var sut = new LocalMachineFileSearcher(_fileAbstraction.FakedObject);
 
-            var files = sut.GetAll(CancellationToken.None).ToArray();
+            sut.Start(CancellationToken.None);
 
             var expected = new[]
             {
@@ -38,18 +40,33 @@ namespace PP.Tests
                 "C:\\Dir1\\f4.txt",
                 "C:\\Dir1\\Dir1_1\\f5.txt","D:\\f_d.txt"
             };
-            Assert.That(files, Is.EquivalentTo(expected));
+            Assert.That(sut.ResultCollection, Is.EquivalentTo(expected));
         }
 
         [Test]
-        public void GetAll_ReturnsEmptyCollection_WhenThereIsNoFilesInAnyDirectory()
+        public void ReturnsEmptyCollection_WhenThereIsNoFilesInAnyDirectory()
         {
             ProvideProperDirectories();
             var sut = new LocalMachineFileSearcher(_fileAbstraction.FakedObject);
 
-            var files = sut.GetAll(CancellationToken.None).ToArray();
+            sut.Start(CancellationToken.None);
 
-            Assert.That(files, Is.EquivalentTo(new string[0]));
+            Assert.That(sut.ResultCollection, Is.EquivalentTo(new string[0]));
+        }
+
+        [Test]
+        public void BeAbleToStopRunningProcessImmediately()
+        {
+            _fileAbstraction
+                .CallsTo(x => x.EnumerateFilesInDirectory("C:\\"))
+                .Returns(new[] { "C:\\f1.txt", "C:\\f2.txt" });
+            var sut = new LocalMachineFileSearcher(_fileAbstraction.FakedObject);
+
+            var cts = new CancellationTokenSource();
+            cts.Cancel();
+            sut.Start(cts.Token);
+
+            Assert.That(sut.ResultCollection, Is.EquivalentTo(new string[0]));
         }
 
         private void ProvideFilesInDirectories()
@@ -74,8 +91,6 @@ namespace PP.Tests
 
         private void ProvideProperDirectories()
         {
-            _fileAbstraction
-                .CallsTo(x => x.GetDrives()).Returns(new[] { "C:\\", "D:\\" });
             _fileAbstraction
                 .CallsTo(x => x.EnumerateTopDirectories("C:\\"))
                 .Returns(new[] { "C:\\Dir1", "C:\\Dir2" });

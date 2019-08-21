@@ -22,7 +22,7 @@ namespace PP.Tests
         }
 
         [Test]
-        public void TestNestingAlgorithm()
+        public void GetAll_ReturnsAllFiles()
         {
             ProvideProperDirectories();
             ProvideFilesInDirectories();
@@ -39,6 +39,17 @@ namespace PP.Tests
                 "C:\\Dir1\\Dir1_1\\f5.txt","D:\\f_d.txt"
             };
             Assert.That(files, Is.EquivalentTo(expected));
+        }
+
+        [Test]
+        public void GetAll_ReturnsEmptyCollection_WhenThereIsNoFilesInAnyDirectory()
+        {
+            ProvideProperDirectories();
+            var sut = new LocalMachineFileSearcher(_fileAbstraction.FakedObject);
+
+            var files = sut.GetAll(CancellationToken.None).ToArray();
+
+            Assert.That(files, Is.EquivalentTo(new string[0]));
         }
 
         private void ProvideFilesInDirectories()

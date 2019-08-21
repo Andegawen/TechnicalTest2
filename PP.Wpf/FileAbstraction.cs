@@ -18,8 +18,6 @@ namespace PP.Wpf
 
         public IEnumerable<string> GetDrives()
         {
-            return new[] {@"C:\Users\Krzysztof.Kroczak\source\repos\Blackdot\packages\NUnit.3.12.0"};
-            
             return DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.Fixed).Select(d => d.RootDirectory.FullName);
         }
     }

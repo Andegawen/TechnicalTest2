@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,7 +20,7 @@ namespace PP.Wpf
 
         public void Start(CancellationToken token)
         {
-            ResultCollection = new List<string>();
+            ResultCollection = new ConcurrentBag<string>();
             var task = Task.Factory.StartNew(() =>
             {
                 try
@@ -41,31 +43,36 @@ namespace PP.Wpf
             });
         }
 
-        public IList<string> ResultCollection { get; private set; }
+        public ConcurrentBag<string> ResultCollection { get; private set; }
 
         private void GetPartial(IEnumerable<string> directories, CancellationToken token)
         {
             try
             {
-                foreach (var directory in directories)
+                var tasks = directories.Select(directory =>
                 {
-                    token.ThrowIfCancellationRequested();
-
-                    try
+                    return Task.Factory.StartNew(() =>
                     {
-                        foreach (var file in _fileAbstraction.EnumerateFilesInDirectory(directory))
+                        token.ThrowIfCancellationRequested();
+
+                        try
                         {
-                            token.ThrowIfCancellationRequested();
-                            ResultCollection.Add(file);
+                            foreach (var file in _fileAbstraction.EnumerateFilesInDirectory(directory))
+                            {
+                                token.ThrowIfCancellationRequested();
+                                ResultCollection.Add(file);
+                            }
                         }
-                    }
-                    catch (UnauthorizedAccessException e)
-                    {
-                        Console.WriteLine(e);
-                    }
+                        catch (UnauthorizedAccessException e)
+                        {
+                            Console.WriteLine(e);
+                        }
 
-                    GetPartial(_fileAbstraction.EnumerateTopDirectories(directory), token);
-                }
+                        GetPartial(_fileAbstraction.EnumerateTopDirectories(directory), token);
+                    });
+                });
+                var task = Task.WhenAll(tasks);
+                task.GetAwaiter().GetResult();
             }
             catch (UnauthorizedAccessException e)
             {
